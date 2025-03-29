@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.shaber.bookmanager.mapper.BookMapper">
+    <!--    查询-->
+<!--    模糊查询书籍，支持分页-->
+    <select id="searchBooks" resultType="Book">
+        SELECT
+        bookid,
+        bookname,
+        publisher,
+        author,
+        tname AS booktype,
+        remain
+        FROM tb_books
+        INNER JOIN tb_booktype ON tb_books.booktype = tb_booktype.tid
+        <where>
+            <if test="bookname != null">
+                AND bookname LIKE CONCAT('%', #{bookname}, '%')
+            </if>
+            <if test="publisher != null">
+                AND publisher LIKE CONCAT('%', #{publisher}, '%')
+            </if>
+            <if test="author != null">
+                AND author LIKE CONCAT('%', #{author}, '%')
+            </if>
+            <if test="booktype != null">
+                AND booktype LIKE CONCAT('%', #{booktype}, '%')
+            </if>
+        </where>
+        LIMIT #{start}, #{size}
+    </select>
+<!--    模糊查询书籍，并统计数量-->
+    <select id="countAllBooksLike" resultType="int">
+        select count(*) from tb_books
+        <where>
+            <if test="bookname != null">
+                bookname like "%"#{bookname}"%"
+            </if>
+            <if test="publisher != null">
+                and publisher like "%"#{publisher}"%"
+            </if>
+            <if test="author != null">
+                and author like "%"#{author}"%"
+            </if>
+            <if test="booktype != null">
+                and booktype like "%"#{booktype}"%"
+            </if>
+        </where>
+    </select>
+    <!--    添加-->
+
+
+    <!--    修改-->
+
+
+    <!--    删除-->
+
+
+    <!--    Map的使用-->
+
+</mapper>

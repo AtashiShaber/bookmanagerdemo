@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>借书目录</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <style>
+        body{
+            font-family: sans-serif,Arial;
+        }
+        #h1_head{
+            display: flex;
+            justify-content: center;
+            margin-top: 50px;
+            margin-bottom: 30px;
+        }
+
+        #div_booktypelist{
+            display: flex;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        #booklist{
+            margin: 0;
+            padding: 0;
+            border-collapse: collapse;
+            text-align: center;
+        }
+        .booklist_head>td,.booklist_tr>td{
+            width: 400px;
+            height: 40px;
+            border: 2px solid black;
+        }
+        .booklist_head{
+            background-color: gray;
+            border: 2px solid black;
+        }
+    </style>
+</head>
+<body>
+<h1 id="h1_head">借书列表</h1>
+<form action="" id="search-form">
+    <div class="input-group mb-4 search-div container" style="max-width: 855px">
+        <span class="input-group-text">类型名称</span>
+        <input type="text" class="form-control" name="tname" id="search-tname">
+        <a class="btn btn-primary" id="search-btn">查询</a>
+    </div>
+</form>
+<div id="div_booktypelist">
+    <table id="booklist">
+        <thead class="booklist_head">
+        <td style="width: 80px">序号</td>
+        <td>类型编号</td>
+        <td style="width: 200px">类型</td>
+        <td style="width: 150px">操作</td>
+        </thead>
+        <tbody id="booklistbody">
+        </tbody>
+    </table>
+</div>
+<div class="d-flex justify-content-center" style="margin-top: 10px">
+    <div class="btn-group me-2" role="group" id="page-div">
+    </div>
+</div>
+<!--    修改模态框-->
+<div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-4" id="exampleModalLabel">修改书籍类型信息</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="" id="updateBookData">
+                <div class="modal-body">
+                    <div class="input-group mb-4">
+                        <input type="hidden" name="tid" id="tid" value="1">
+                        <span class="input-group-text">类型名称</span>
+                        <input type="text" class="form-control" name="tname" id="tname">
+                    </div>
+                </div>
+            </form>
+            <div class="modal-footer div-btn-cancelAndSubmit">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="updateBookTypeCancel">取消</button>
+                <button type="button" class="btn btn-primary" id="updateBookTypeSubmit">修改</button>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+    searchParams = {};
+
+    //查询所有书籍
+    $(function (){
+        let start = 0;
+
+        //每次进入前清除残余内容
+        $("#booklistbody").empty();
+
+        loadBookTypes(start);
+
+        //修改
+        $("#booklistbody").on("click",".updateBooktype",function (){
+            let tid = $(this).data("booktype-id");
+
+            $.ajax({
+                url:"/bookType",
+                data: {tid:tid},
+                type: "get",
+                dataType: "json",
+                success:function (resp){
+                    let bookType = resp.t;
+                    if (bookType != null){
+                        $("#tid").val(bookType.tid);
+                        $("#tname").val(bookType.tname);
+                    }
+                }
+            })
+        })
+        //点击取消按钮之后，会清除模态框内所有内容
+        $(".div-btn-cancelAndSubmit").on("click","#updateBookTypeCancel",function (){
+            // $("#updateBookCancel").onclick(function (){
+            $("#tid").val(null);
+            $("#tname").val(null);
+        })
+        //点击提交后提交表单内的修改内容
+        $(".div-btn-cancelAndSubmit").on("click","#updateBookTypeSubmit",function (){
+            //获取表单数据
+            let bookTypeData = {
+                tid: $("#tid").val(),
+                tname: $("#tname").val(),
+            };
+            //提交数据交于后台Servlet处理
+            $.ajax({
+                url: "/bookType", // 确保路径正确
+                type: "PUT", // 使用 PUT 方法
+                data: JSON.stringify(bookTypeData), // 数据转换为 JSON 字符串
+                contentType: "application/json", // 告诉服务器接收的数据是 JSON 格式
+                dataType: "json", // 返回的数据类型为 JSON
+                success: function (resp) {
+                    alert(resp.message);
+                    // 如果修改成功刷新页面
+                    if (resp.result === true) {
+                        location.reload();
+                        // 清空表单
+                        $("#tid").val(null);
+                        $("#tname").val(null);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert("请求失败：" + status + " " + error); // 错误提示
+                }
+            });
+        })
+
+        //删除
+        $("#booklistbody").on("click",".delBooktype",function (){
+            let tid = $(this).data("booktype-id");
+            //判断是否进行删除
+            if (confirm("是否删除该书籍类型？")){
+                $.ajax({
+                    url:"/bookType/" + tid,
+                    type: "DELETE",
+                    dataType: "json",
+                    success:function (resp){
+                        console.log(resp);
+                        alert(resp.message);
+                        if (resp.result === true){
+                            location.reload();
+                        }
+                    }
+                })
+            }
+        })
+
+        // 查询按钮点击事件，收集表单数据
+        $(".search-div").on("click","#search-btn",function (){
+            searchParams = $("#search-form").serializeArray().reduce((obj, item) => {
+                obj[item.name] = item.value;
+                return obj;
+            }, {});
+            loadBookTypes(0); // 使用新查询参数加载第一页数据
+        });
+
+        //模糊搜索相关
+        // 加载书籍类型列表
+        function loadBookTypes(startNum) {
+            let requestData = Object.assign({ start: startNum, size: 5 }, searchParams);
+
+            $.ajax({
+                url: "/bookTypes",
+                data: requestData,
+                type: "get",
+                dataType: "json",
+                success: function (resp) {
+                    $("#booklistbody").empty();
+                    let booktypes = resp.data;
+                    for (let i = 0; i < booktypes.length; i++) {
+                        let booktype = booktypes[i];
+                        let trElement = $("<tr class=\"booklist_tr\">\n" +
+                            "                <td style=\"width: 80px\">" + (i + 1) + "</td>\n" +
+                            "                <td>" + booktype.tid + "</td>\n" +
+                            "                <td style=\"width: 200px\">" + booktype.tname + "</td>\n" +
+                            "                <td style=\"width: 150px\">" +
+                            "                    <a class=\"btn btn-primary btn-sm updateBooktype\" data-bs-toggle=\"modal\" data-bs-target=\"#exampleModal\" data-booktype-id='" + booktype.tid + "'>修改</a>\n" +
+                            "                    <a class=\"btn btn-danger btn-sm delBooktype\"  data-booktype-id='" + booktype.tid + "'>删除</a>\n" +
+                            "                </td>" +
+                            "            </tr>");
+                        $("#booklistbody").append(trElement);
+                    }
+                    updatePagination(startNum, resp.total); // 更新分页
+                }
+            });
+        }
+
+        // 更新分页按钮
+        function updatePagination(startNum, totalItems) {
+            $("#page-div").empty();
+            let totalPages = Math.ceil(totalItems / 5);
+
+            for (let i = 0; i < totalPages; i++) {
+                let btnClass = (((5 * i) === startNum) ? 'btn-primary' : 'btn-outline-primary');
+                let pageBtn = $("<button>", {
+                    type: "button",
+                    class: "btn " + btnClass + " page-btn",
+                    text: (i+1),
+                    "data-page": i
+                });
+                $("#page-div").append(pageBtn);
+            }
+
+            $(".page-btn").off("click").on("click", function () {
+                startNum = $(this).data("page") * 5;
+                loadBooks(startNum);
+                $(".page-btn").removeClass("btn-primary").addClass("btn-outline-primary");
+                $(this).removeClass("btn-outline-primary").addClass("btn-primary");
+            });
+        }
+
+
+    });
+
+</script>
+</html>

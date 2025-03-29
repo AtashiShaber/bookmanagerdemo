@@ -1,0 +1,194 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>借阅信息</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <style>
+        body{
+            font-family: sans-serif,Arial;
+        }
+        #h1_head{
+            display: flex;
+            justify-content: center;
+            margin-top: 50px;
+            margin-bottom: 30px;
+        }
+
+        #div_borrowlist{
+            display: flex;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        #borrowlist{
+            margin: 0;
+            padding: 0;
+            border-collapse: collapse;
+            text-align: center;
+        }
+        .borrowlist_head>td,.borrowlist_tr>td{
+            width: 300px;
+            height: 40px;
+            border: 2px solid black;
+        }
+        .borrowlist_head{
+            background-color: gray;
+            border: 2px solid black;
+        }
+    </style>
+</head>
+<body>
+<h1 id="h1_head">借阅信息</h1>
+<form action="" id="search-form">
+    <div class="input-group mb-4 search-div">
+        <span class="input-group-text">书籍名称</span>
+        <input type="text" class="form-control" name="bookname" id="search-bookname">
+        <span class="input-group-text">借阅人</span>
+        <input type="text" class="form-control" name="borrower" id="search-borrower">
+        <span class="input-group-text">电话</span>
+        <input type="text" class="form-control" name="phone" id="search-phone">
+        <a class="btn btn-primary" id="search-btn">查询</a>
+    </div>
+</form>
+<div id="div_borrowlist">
+    <table id="borrowlist">
+        <thead class="borrowlist_head">
+            <td style="display: none">借阅ID</td>
+            <td>图书名称</td>
+            <td>借阅人</td>
+            <td>电话</td>
+            <td>借阅日期</td>
+            <td>归还日期</td>
+            <td style="width: 150px">是否归还</td>
+            <td style="width: 80px">操作</td>
+        </thead>
+        <tbody id="borrowlistbody">
+        </tbody>
+    </table>
+</div>
+<div class="d-flex justify-content-center" style="margin-top: 10px">
+    <div class="btn-group me-2" role="group" id="page-div">
+    </div>
+</div>
+</body>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+    //查询所有书籍
+    //同步事件顺序
+    $(function (){
+        //存放点击页码,默认为0
+        let start = 0;
+        loadBorrowInfoList(start);  // 默认加载第一页的书籍
+
+        //每次进入前清除残余内容
+        $("#borrowlistbody").empty();
+
+        // 查询按钮点击事件，收集表单数据
+        $(".search-div").on("click","#search-btn",function (){
+            searchParams = $("#search-form").serializeArray().reduce((obj, item) => {
+                obj[item.name] = item.value;
+                return obj;
+            }, {});
+            loadBorrowInfoList(0); // 使用新查询参数加载第一页数据
+        });
+
+        //模糊搜索相关
+        // 加载书籍类型列表
+        function loadBorrowInfoList(startNum) {
+            let requestData = Object.assign({ start: startNum, size: 5 }, searchParams);
+
+            $.ajax({
+                url: "/borrowInfo",
+                data: requestData,
+                type: "get",
+                dataType: "json",
+                success: function (resp) {
+                    $("#borrowlistbody").empty();
+                    let borrows = resp.data;
+                    for (let i = 0; i < borrows.length; i++) {
+                        let borrow = borrows[i];
+                        let bookname = (borrow && borrow.bookid) ? "《" + borrow.bookid + "》" : "已删除的书籍";  // 检查 book 是否为 null
+                        let borrowtime = borrow.borrowtime;  // 已经是格式化后的日期
+                        let returntime = (borrow.returntime && borrow) ? borrow.returntime : "尚未归还";
+                        let isreturn = borrow.isreturn === 0 ? "<td style='width: 150px;color: red'>未归还</td>\n" : "<td style='width: 150px;color: cornflowerblue'>已归还</td>\n";
+                        let returnbtn;
+                        if (borrow.isreturn === 0){
+                            returnbtn = "<a class=\"btn btn-primary btn-sm backBorrow\" data-borrow-id='" + borrow.borrowid + "'>还书</a>\n";
+                        }else {
+                            returnbtn = "N/A";
+                        }
+                        let trElement = $("<tr class=\"borrowlist_tr\">\n" +
+                            "                <td style=\"display: none\">" + borrow.borrowid + "</td>\n" +
+                            "                <td>" + bookname + "</td>\n" +
+                            "                <td>" + borrow.borrower + "</td>\n" +
+                            "                <td>" + borrow.phone + "</td>\n" +
+                            "                <td>" + borrowtime + "</td>\n" +
+                            "                <td>" + returntime + "</td>\n" + isreturn +
+                            "                <td style='width: 80px'>" + returnbtn +
+                            "                </td>" +
+                            "            </tr>");
+                        $("#borrowlistbody").append(trElement);
+                    }
+                    updatePagination(startNum, resp.total); // 更新分页
+                }
+            });
+        }
+
+
+        // 更新分页按钮
+        function updatePagination(startNum, totalItems) {
+            $("#page-div").empty();
+            let totalPages = Math.ceil(totalItems / 5);
+
+            for (let i = 0; i < totalPages; i++) {
+                let btnClass = (((5 * i) === startNum) ? 'btn-primary' : 'btn-outline-primary');
+                let pageBtn = $("<button>", {
+                    type: "button",
+                    class: "btn " + btnClass + " page-btn",
+                    text: (i+1),
+                    "data-page": i
+                });
+                $("#page-div").append(pageBtn);
+            }
+
+            $(".page-btn").off("click").on("click", function () {
+                startNum = $(this).data("page") * 5;
+                loadBorrowInfoList(startNum);
+                $(".page-btn").removeClass("btn-primary").addClass("btn-outline-primary");
+                $(this).removeClass("btn-outline-primary").addClass("btn-primary");
+            });
+        }
+
+
+
+        //还书
+        $("#borrowlistbody").on("click",".backBorrow",function (){
+            let borrowid = $(this).data("borrow-id");
+            let jsonBorrowid = {
+                borrowid:borrowid
+            }
+            //判断是否进行删除
+            if (confirm("是否执行还书操作？")){
+                $.ajax({
+                    url:"/borrowInfo",
+                    type: "PUT",
+                    contentType: "application/json",
+                    // data: {borrowid:borrowid},
+                    data: JSON.stringify(jsonBorrowid),
+                    dataType: "json",
+                    success:function (resp){
+                        console.log(resp);
+                        alert(resp.message);
+                        if (resp.result === true){
+                            location.reload();
+                        }
+                    }
+                })
+            }
+        })
+
+    })
+</script>
+</html>

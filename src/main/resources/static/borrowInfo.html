@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>借书目录</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <style>
+        body{
+            font-family: sans-serif,Arial;
+        }
+        #h1_head{
+            display: flex;
+            justify-content: center;
+            margin-top: 50px;
+            margin-bottom: 30px;
+        }
+
+        #div_boolist{
+            display: flex;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        #booklist{
+            margin: 0;
+            padding: 0;
+            border-collapse: collapse;
+            text-align: center;
+        }
+        .booklist_head>td,.booklist_tr>td{
+            width: 300px;
+            height: 40px;
+            border: 2px solid black;
+        }
+        .booklist_head{
+            background-color: gray;
+            border: 2px solid black;
+        }
+    </style>
+</head>
+<body>
+<h1 id="h1_head">借书列表</h1>
+<form action="" id="search-form">
+    <div class="input-group mb-4 search-div">
+        <span class="input-group-text">书籍名称</span>
+        <input type="text" class="form-control" name="bookname" id="search-bookname">
+        <span class="input-group-text">出版社</span>
+        <input type="text" class="form-control" name="publisher" id="search-publisher">
+        <span class="input-group-text">作者</span>
+        <input type="text" class="form-control" name="author" id="search-author">
+        <span class="input-group-text">类型</span>
+        <select class="form-select" name="booktype" id="search-booktype">
+            <option selected value="">---请选择书籍类型---</option>
+        </select>
+        <a class="btn btn-primary" id="search-btn">查询</a>
+    </div>
+</form>
+<div id="div_boolist">
+    <table id="booklist">
+        <thead class="booklist_head">
+        <td style="display: none">图书ID</td>
+        <td style="width: 80px">编号</td>
+        <td>图书名称</td>
+        <td>出版社</td>
+        <td>作者</td>
+        <td style="width: 130px">书籍类型</td>
+        <td style="width: 130px">数量</td>
+        <td style="width: 100px">操作</td>
+        </thead>
+        <tbody id="booklistbody">
+        </tbody>
+    </table>
+</div>
+<div class="d-flex justify-content-center" style="margin-top: 10px">
+    <div class="btn-group me-2" role="group" id="page-div">
+    </div>
+</div>
+</body>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+    searchParams = {};
+    $(function () {
+        loadBooks(0);  // 默认加载第一页的书籍
+
+        // 查询书籍类型，放入下拉选框
+        $.ajax({
+            url: "/allBookTypes",
+            type: "get",
+            dataType: "json",
+            success: function (resp) {
+                if (resp.result === true) {
+                    let booktypes = resp.t;
+                    for (let i = 0; i < booktypes.length; i++) {
+                        let booktype = booktypes[i];
+                        let opElement = "<option value='" + booktype.tid + "'>" + booktype.tname + "</option>";
+                        // 添加到搜索框和其他地方
+                        $("#booktype").append(opElement);
+                        $("#search-booktype").append(opElement);
+                    }
+                }
+            }
+        });
+
+        // 借阅功能
+        $("#booklistbody").on("click", ".borrowBook", function () {
+            let bookid = $(this).data("book-id");
+            let bookData = {
+                borrower:"测试用户",
+                bookid:bookid
+            }
+            if (confirm("是否借阅本书？")) {
+                $.ajax({
+                    url: "/borrowInfo",
+                    type: "POST",
+                    dataType:"json",
+                    contentType: "application/json", // 告诉服务器接收的数据是 JSON 格式
+                    data:JSON.stringify(bookData),
+                    success: function (resp) {
+                        console.log(resp);
+                        alert(resp.message);
+                        if (resp.result === true) {
+                            location.reload();
+                        }
+                    }
+                });
+            }
+        });
+
+        // 查询按钮点击事件，收集表单数据
+        $(".search-div").on("click", "#search-btn", function () {
+            // 这里不需要再次声明 searchParams，直接更新它的值
+            searchParams = $("#search-form").serializeArray().reduce((obj, item) => {
+                obj[item.name] = item.value;
+                return obj;
+            }, {});
+            loadBooks(1); // 使用新查询参数加载第一页数据
+        });
+    });
+
+    // 加载书籍列表
+    function loadBooks(startNum) {
+        let requestData = Object.assign({ start: startNum, size: 5 }, searchParams);
+
+        $.ajax({
+            url: "/books",
+            data: requestData,
+            type: "get",
+            dataType: "json",
+            success: function (resp) {
+                $("#booklistbody").empty();
+                let books = resp.data;
+                for (let i = 0; i < books.length; i++) {
+                    let book = books[i];
+                    let borrowBtn;
+                    if (book.remain > 0) {
+                        borrowBtn = "<a class=\"btn btn-primary btn-sm borrowBook\" data-book-id='" + book.bookid + "'>借阅</a>";
+                    } else {
+                        borrowBtn = "无书可借";
+                    }
+                    let trElement = $("<tr class=\"booklist_tr\">\n" +
+                        "    <td style=\"display: none\">" + book.bookid + "</td>\n" +
+                        "    <td style=\"width: 80px\">" + (i + 1) + "</td>\n" +
+                        "    <td>" + book.bookname + "</td>\n" +
+                        "    <td>" + book.publisher + "</td>\n" +
+                        "    <td>" + book.author + "</td>\n" +
+                        "    <td style=\"width: 130px\">" + book.booktype + "</td>\n" +
+                        "    <td style=\"width: 130px\">" + book.remain + "</td>\n" +
+                        "    <td style=\"width: 100px\">" + borrowBtn + "</td>\n" +
+                        "</tr>");
+                    $("#booklistbody").append(trElement);
+                }
+                updatePagination(startNum, resp.total);
+            }
+        });
+    }
+
+    // 更新分页按钮
+    function updatePagination(startNum, totalItems) {
+        $("#page-div").empty();
+        let totalPages = Math.ceil(totalItems / 5);
+
+        for (let i = 0; i < totalPages; i++) {
+            let btnClass;
+            if ((5 * i) === startNum) {
+                btnClass = "btn-primary";
+            }else {
+                btnClass = "btn-outline-primary";
+            }
+            let pageBtn = $("<button>", {
+                type: "button",
+                class: "btn " + btnClass + " page-btn",
+                text: (i+1),
+                "data-page": i
+            });
+            $("#page-div").append(pageBtn);
+        }
+
+        $("#page-div").on("click",".page-btn", function () {
+            startNum = $(this).data("page") * 5;
+            loadBooks(startNum);
+            $(".page-btn").removeClass("btn-primary").addClass("btn-outline-primary");
+            $(this).removeClass("btn-outline-primary").addClass("btn-primary");
+        });
+    }
+</script>
+</html>
